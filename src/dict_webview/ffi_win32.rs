@@ -149,9 +149,7 @@ pub(crate) fn window_title_contains(hwnd: isize, needle: &[u16]) -> bool {
     }
 }
 
-const APP_NAME_WIDE: &[u16] = &[
-    0x0045, 0x004c, 0x0050, 0x0031, 0x0031,
-];
+const APP_NAME_WIDE: &[u16] = &[0x0045, 0x004c, 0x0050, 0x0031, 0x0031];
 
 unsafe extern "system" fn enum_windows_callback(hwnd: isize, lparam: *mut isize) -> i32 {
     let result = unsafe { &mut *(lparam as *mut Option<isize>) };

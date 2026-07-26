@@ -5,8 +5,8 @@ use std::time::Duration;
 impl App {
     pub fn handle_toggle_pause(&mut self) -> Task<Message> {
         if let VideoState::Ready(ref mut v) = self.video {
-            let p = v.paused();
-            v.set_paused(!p);
+            self.paused = !self.paused;
+            v.set_paused(self.paused);
         }
         Task::none()
     }
@@ -15,6 +15,7 @@ impl App {
         self.dragging = true;
         self.position = secs;
         if let VideoState::Ready(ref mut v) = self.video {
+            self.paused = true;
             v.set_paused(true);
         }
         Task::none()
@@ -24,6 +25,7 @@ impl App {
         self.dragging = false;
         if let VideoState::Ready(ref mut v) = self.video {
             let _ = v.seek(Duration::from_secs_f64(self.position), false);
+            self.paused = false;
             v.set_paused(false);
         }
         Task::none()
@@ -63,6 +65,7 @@ impl App {
             let n = (v.position().as_secs_f64() - 1.0 / fps).max(0.0);
             self.position = n;
             let _ = v.seek(Duration::from_secs_f64(n), true);
+            self.paused = true;
             v.set_paused(true);
         }
         Task::none()
@@ -280,6 +283,7 @@ impl App {
                     Ok(v) => {
                         self.video = VideoState::Ready(v);
                         self.position = 0.0;
+                        self.paused = false;
                         self.settings.add_recent_file(ps);
                         crate::settings::save(&self.settings);
                         // Schedule a resume-seek for the first rendered frame.

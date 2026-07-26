@@ -84,6 +84,11 @@ pub struct App {
     pub video: VideoState,
     pub position: f64,
     pub dragging: bool,
+    /// User-intended pause state.  Tracked separately from the GStreamer
+    /// pipeline state because a FLUSH seek (arrow keys, seek bar) causes
+    /// the pipeline to briefly go through Paused for preroll, which would
+    /// make `Video::paused()` flicker if queried directly for the UI icon.
+    pub paused: bool,
     pub volume: f64,
     pub muted: bool,
     pub looping: bool,
@@ -125,6 +130,7 @@ impl Default for App {
             video: VideoState::NoVideo,
             position: 0.0,
             dragging: false,
+            paused: true,
             volume: 1.0,
             muted: false,
             looping: false,

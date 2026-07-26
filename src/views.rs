@@ -25,7 +25,7 @@ pub(crate) const PURPLE: Color = Color::from_rgb(0.612, 0.392, 0.867);
 // ── view ──────────────────────────────────────────────────────────────────
 
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    let is_paused = app.with_video(|v: &Video| v.paused()).unwrap_or(true);
+    let is_paused = app.paused;
     let is_looping = app
         .with_video(|v: &Video| v.looping())
         .unwrap_or(app.looping);

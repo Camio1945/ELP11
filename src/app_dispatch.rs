@@ -5,15 +5,10 @@ impl App {
     /// Main message dispatcher — delegates to the appropriate handler.
     /// Settings and history messages are forwarded to `dispatch_settings`.
     pub fn dispatch(&mut self, message: Message) -> Task<Message> {
+        if let Some(task) = self.dispatch_media_controls(&message) {
+            return task;
+        }
         match message {
-            Message::TogglePause => self.handle_toggle_pause(),
-            Message::Seek(s) => self.handle_seek(s),
-            Message::SeekRelease => self.handle_seek_release(),
-            Message::SkipBack(s) => self.handle_skip_back(s),
-            Message::SkipForward(s) => self.handle_skip_forward(s),
-            Message::FrameStepForward => self.handle_frame_step_forward(),
-            Message::FrameStepBackward => self.handle_frame_step_backward(),
-            Message::EndOfStream => Task::none(),
             Message::NewFrame => self.handle_new_frame(),
             Message::PlaybackError(err) => self.handle_playback_error(err),
             Message::OpenFile => self.handle_open_file(),
@@ -39,6 +34,26 @@ impl App {
             Message::Tick => self.handle_tick(),
             Message::SavePosition => self.handle_save_position(),
             _ => self.dispatch_secondary(message),
+        }
+    }
+
+    /// Dispatch playback transport-control messages (pause, seek, skip, etc.).
+    /// Returns `Some(task)` when the message is consumed here; `None` to fall
+    /// through to the main dispatcher.
+    fn dispatch_media_controls(&mut self, message: &Message) -> Option<Task<Message>> {
+        match message {
+            Message::TogglePause => Some(self.handle_toggle_pause()),
+            Message::Seek(s) => Some(self.handle_seek(*s)),
+            Message::SeekRelease => Some(self.handle_seek_release()),
+            Message::SkipBack(s) => Some(self.handle_skip_back(*s)),
+            Message::SkipForward(s) => Some(self.handle_skip_forward(*s)),
+            Message::FrameStepForward => Some(self.handle_frame_step_forward()),
+            Message::FrameStepBackward => Some(self.handle_frame_step_backward()),
+            Message::EndOfStream => {
+                self.paused = true;
+                Some(Task::none())
+            }
+            _ => None,
         }
     }
 
