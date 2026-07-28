@@ -81,3 +81,109 @@ fn is_english_suffix(suffix_no_ext: &str) -> bool {
         .replace('_', "-");
     s == "en" || s == "eng" || s == "english" || s.starts_with("en-") || s.starts_with("eng-")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── strip_extension ─────────────────────────────────────────
+
+    #[test]
+    fn test_strip_extension_with_ext() {
+        assert_eq!(strip_extension(".en.srt"), ".en");
+        assert_eq!(strip_extension(".zh-CN.srt"), ".zh-CN");
+        assert_eq!(strip_extension(".srt"), "");
+    }
+
+    #[test]
+    fn test_strip_extension_no_ext() {
+        assert_eq!(strip_extension("noext"), "noext");
+    }
+
+    #[test]
+    fn test_strip_extension_no_dot() {
+        assert_eq!(strip_extension(".en"), "");
+    }
+
+    // ── is_english_suffix ───────────────────────────────────────
+
+    #[test]
+    fn test_is_english_suffix_en() {
+        assert!(is_english_suffix(".en"));
+        assert!(is_english_suffix("en"));
+    }
+
+    #[test]
+    fn test_is_english_suffix_eng() {
+        assert!(is_english_suffix(".eng"));
+        assert!(is_english_suffix("eng"));
+    }
+
+    #[test]
+    fn test_is_english_suffix_full() {
+        assert!(is_english_suffix(".english"));
+    }
+
+    #[test]
+    fn test_is_english_suffix_with_region() {
+        assert!(is_english_suffix(".en-US"));
+        assert!(is_english_suffix(".en-GB"));
+        assert!(is_english_suffix(".eng-US"));
+    }
+
+    #[test]
+    fn test_is_english_suffix_underscore() {
+        assert!(is_english_suffix(".en_US"));
+    }
+
+    #[test]
+    fn test_is_english_suffix_case_insensitive() {
+        assert!(is_english_suffix(".EN"));
+        assert!(is_english_suffix(".En-Us"));
+    }
+
+    #[test]
+    fn test_is_english_suffix_non_english() {
+        assert!(!is_english_suffix(".zh-CN"));
+        assert!(!is_english_suffix(".ja"));
+        assert!(!is_english_suffix(".fr"));
+        assert!(!is_english_suffix(".ko"));
+    }
+
+    // ── pick_best_subtitle_candidate ────────────────────────────
+
+    fn make_candidate(path: &str, remainder: &str) -> (std::path::PathBuf, String) {
+        (std::path::PathBuf::from(path), remainder.to_string())
+    }
+
+    #[test]
+    fn test_pick_best_prefers_default() {
+        let mut candidates = vec![
+            make_candidate("movie.en.srt", ".en.srt"),
+            make_candidate("movie.srt", ".srt"), // default — preferred
+        ];
+        let result = pick_best_subtitle_candidate(&mut candidates).unwrap();
+        assert!(result.to_str().unwrap().ends_with("movie.srt"));
+    }
+
+    #[test]
+    fn test_pick_best_falls_back_to_english() {
+        let mut candidates = vec![
+            make_candidate("movie.zh-CN.srt", ".zh-CN.srt"),
+            make_candidate("movie.en.srt", ".en.srt"),
+        ];
+        let result = pick_best_subtitle_candidate(&mut candidates).unwrap();
+        assert!(result.to_str().unwrap().ends_with("movie.en.srt"));
+    }
+
+    #[test]
+    fn test_pick_best_fallback_first() {
+        let mut candidates = vec![
+            make_candidate("movie.zh-CN.srt", ".zh-CN.srt"),
+            make_candidate("movie.ja.srt", ".ja.srt"),
+        ];
+        let result = pick_best_subtitle_candidate(&mut candidates).unwrap();
+        // Falls back to first candidate since neither is default nor English
+        assert!(result.to_str().unwrap().ends_with("movie.zh-CN.srt"));
+    }
+}

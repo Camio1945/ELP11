@@ -5,32 +5,52 @@ use iced::keyboard::{self, Key, key};
 impl App {
     pub fn handle_keyboard_event(&mut self, event: keyboard::Event) -> Task<Message> {
         match event {
-            keyboard::Event::KeyPressed { key, modifiers, .. } => match &key {
-                Key::Named(key::Named::Space) => self.handle_toggle_pause(),
-                Key::Named(key::Named::ArrowLeft) => self.handle_skip_back(5),
-                Key::Named(key::Named::ArrowRight) => self.handle_skip_forward(5),
-                Key::Named(key::Named::ArrowUp) => self.handle_arrow_key(true, modifiers.control()),
-                Key::Named(key::Named::ArrowDown) => {
-                    self.handle_arrow_key(false, modifiers.control())
-                }
-                Key::Named(key::Named::Enter) => self.handle_toggle_fullscreen(),
-                Key::Named(key::Named::Home) => self.handle_subtitle_home(),
-                Key::Named(key::Named::End) => self.handle_subtitle_end(),
-                Key::Named(key::Named::PageUp) => self.handle_playlist_prev(),
-                Key::Named(key::Named::PageDown) => self.handle_playlist_next(),
-                Key::Character(c) => self.handle_character_key(c.as_str()),
-                Key::Named(key::Named::Escape) => {
-                    if self.fullscreen {
-                        self.handle_toggle_fullscreen()
-                    } else if !self.dict_word.is_empty() {
-                        self.handle_close_dictionary()
-                    } else {
-                        Task::none()
-                    }
-                }
-                _ => Task::none(),
-            },
+            keyboard::Event::KeyPressed { key, modifiers, .. } => {
+                self.handle_key_press(&key, modifiers)
+            }
             _ => Task::none(),
+        }
+    }
+
+    fn handle_key_press(&mut self, key: &Key, modifiers: keyboard::Modifiers) -> Task<Message> {
+        match key {
+            Key::Named(key::Named::Space) => self.handle_toggle_pause(),
+            Key::Named(key::Named::ArrowLeft) => {
+                if modifiers.control() {
+                    self.handle_skip_back(30)
+                } else {
+                    self.handle_skip_back(5)
+                }
+            }
+            Key::Named(key::Named::ArrowRight) => {
+                if modifiers.control() {
+                    self.handle_skip_forward(30)
+                } else {
+                    self.handle_skip_forward(5)
+                }
+            }
+            Key::Named(key::Named::ArrowUp) => self.handle_arrow_key(true, modifiers.control()),
+            Key::Named(key::Named::ArrowDown) => {
+                self.handle_arrow_key(false, modifiers.control())
+            }
+            Key::Named(key::Named::Enter) => self.handle_toggle_fullscreen(),
+            Key::Named(key::Named::Home) => self.handle_subtitle_home(),
+            Key::Named(key::Named::End) => self.handle_subtitle_end(),
+            Key::Named(key::Named::PageUp) => self.handle_playlist_prev(),
+            Key::Named(key::Named::PageDown) => self.handle_playlist_next(),
+            Key::Character(c) => self.handle_character_key(c.as_str()),
+            Key::Named(key::Named::Escape) => self.handle_escape_key(),
+            _ => Task::none(),
+        }
+    }
+
+    fn handle_escape_key(&mut self) -> Task<Message> {
+        if self.fullscreen {
+            self.handle_toggle_fullscreen()
+        } else if !self.dict_word.is_empty() {
+            self.handle_close_dictionary()
+        } else {
+            Task::none()
         }
     }
 

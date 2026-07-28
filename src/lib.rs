@@ -88,3 +88,82 @@ pub enum Error {
     #[error("invalid framerate: {0}")]
     Framerate(f64),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_display_bus() {
+        assert_eq!(Error::Bus.to_string(), "failed to get the gstreamer bus");
+    }
+
+    #[test]
+    fn test_error_display_app_sink() {
+        let err = Error::AppSink("test_sink".to_string());
+        assert!(err.to_string().contains("test_sink"));
+    }
+
+    #[test]
+    fn test_error_display_cast() {
+        assert_eq!(Error::Cast.to_string(), "failed to cast gstreamer element");
+    }
+
+    #[test]
+    fn test_error_display_uri() {
+        let err = Error::Uri("bad://uri".to_string());
+        assert!(err.to_string().contains("bad://uri"));
+    }
+
+    #[test]
+    fn test_error_display_caps() {
+        assert_eq!(Error::Caps.to_string(), "failed to get media capabilities");
+    }
+
+    #[test]
+    fn test_error_display_duration() {
+        assert_eq!(
+            Error::Duration.to_string(),
+            "failed to query media duration or position"
+        );
+    }
+
+    #[test]
+    fn test_error_display_sync() {
+        assert_eq!(Error::Sync.to_string(), "failed to sync with playback");
+    }
+
+    #[test]
+    fn test_error_display_lock() {
+        assert_eq!(
+            Error::Lock.to_string(),
+            "failed to lock internal sync primitive"
+        );
+    }
+
+    #[test]
+    fn test_error_display_framerate() {
+        let err = Error::Framerate(0.0);
+        assert_eq!(err.to_string(), "invalid framerate: 0");
+    }
+
+    #[test]
+    fn test_error_display_framerate_negative() {
+        let err = Error::Framerate(-1.5);
+        assert_eq!(err.to_string(), "invalid framerate: -1.5");
+    }
+
+    #[test]
+    fn test_error_from_io() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let err: Error = io_err.into();
+        assert!(matches!(err, Error::Io(_)));
+        assert!(err.to_string().contains("file not found"));
+    }
+
+    #[test]
+    fn test_error_debug() {
+        let err = Error::Bus;
+        assert_eq!(format!("{:?}", err), "Bus");
+    }
+}

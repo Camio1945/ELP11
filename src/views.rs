@@ -192,13 +192,13 @@ fn build_controls<'a>(is_paused: bool, is_looping: bool, app: &App) -> Row<'a, M
         .spacing(4)
         .padding([8, 12])
         .align_y(Vertical::Center)
-        .push(crate::widgets::skip_back_10_btn())
+        .push(crate::widgets::skip_back_30_btn())
         .push(crate::widgets::skip_back_5_btn())
         .push(Space::new().width(2))
         .push(crate::widgets::pause_play_btn(is_paused))
         .push(Space::new().width(2))
         .push(crate::widgets::skip_forward_5_btn())
-        .push(crate::widgets::skip_forward_10_btn())
+        .push(crate::widgets::skip_forward_30_btn())
         .push(crate::widgets::frame_step_btn())
         .push(Space::new().width(Length::Fill))
         // ── right-side utility cluster ──
@@ -309,6 +309,71 @@ fn build_no_video_content() -> Column<'static, Message> {
                 .padding([10, 28])
                 .style(crate::styles::teal_btn),
         )
+        .push(Space::new().height(8))
+        .push(build_shortcuts_reference())
+}
+
+fn shortcut_entries() -> [(&'static str, &'static str); 24] {
+    [
+        ("Space", "Play / Pause"),
+        ("\u{2190}", "Skip back 5s"),
+        ("\u{2192}", "Skip forward 5s"),
+        ("Ctrl+\u{2190}", "Skip back 30s"),
+        ("Ctrl+\u{2192}", "Skip forward 30s"),
+        ("\u{2191}", "Volume up"),
+        ("\u{2193}", "Volume down"),
+        ("Ctrl+\u{2191}", "Speed up"),
+        ("Ctrl+\u{2193}", "Speed down"),
+        ("Enter", "Toggle fullscreen"),
+        ("F", "Toggle fullscreen"),
+        ("Escape", "Exit fullscreen / Close dict"),
+        ("Home", "Jump to subtitle start"),
+        ("End", "Jump to next subtitle"),
+        ("Page Up", "Previous playlist"),
+        ("Page Down", "Next playlist"),
+        ("M", "Mute / Unmute"),
+        ("L", "Toggle loop"),
+        ("[ ]", "Decrease / Increase speed"),
+        (",", "Frame step backward"),
+        (".", "Frame step forward"),
+        ("O", "Open file"),
+        ("S", "Load subtitle"),
+        ("C", "Cycle content fit"),
+    ]
+}
+
+fn build_shortcut_row<'a>(key: &'a str, action: &'a str) -> Row<'a, Message> {
+    Row::new()
+        .spacing(8)
+        .push(
+            Text::new(key)
+                .size(10)
+                .color(TEAL)
+                .width(Length::Fixed(130.0))
+                .align_x(Horizontal::Right),
+        )
+        .push(Text::new(action).size(10).color(MUTED))
+}
+
+fn build_shortcuts_reference() -> Container<'static, Message> {
+    let header = Text::new("Keyboard Shortcuts").size(12).color(Color::WHITE);
+
+    let mut col = Column::new()
+        .spacing(3)
+        .push(header)
+        .push(Space::new().height(4));
+
+    for (key, action) in &shortcut_entries() {
+        col = col.push(build_shortcut_row(key, action));
+    }
+
+    Container::new(col).padding(16).style(|_| container::Style {
+        background: Some(iced::Background::Color(Color::from_rgb(0.10, 0.10, 0.14))),
+        border: border::color(Color::from_rgba(0.55, 0.55, 0.58, 0.25))
+            .width(1.0)
+            .rounded(8.0),
+        ..Default::default()
+    })
 }
 
 fn build_no_video_icon() -> Container<'static, Message> {

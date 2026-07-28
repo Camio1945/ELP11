@@ -4,7 +4,7 @@
 //! `subpicture/x-pgs` buffer) into an RGBA bitmap with position info.
 
 /// A decoded PGS subtitle image.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PgsImage {
     pub rgba: Vec<u8>,
     pub width: u32,
@@ -19,6 +19,7 @@ pub struct PgsImage {
     pub frame_height: u32,
 }
 
+#[derive(Debug, PartialEq)]
 struct OdsPart {
     object_id: u16,
     first: bool,
@@ -359,4 +360,386 @@ fn yuv_to_rgb(y: u8, cr: u8, cb: u8) -> (u8, u8, u8) {
 
 fn clamp(v: f64) -> u8 {
     v.round().max(0.0).min(255.0) as u8
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── yuv_to_rgb ──────────────────────────────────────────────
+
+    #[test]
+    fn test_yuv_to_rgb_black() {
+        // Y=16, Cr/Cb=128 → approximately black (limited-range 0)
+        let (r, g, b) = yuv_to_rgb(16, 128, 128);
+        assert!(r <= 20, "expected near-black red, got {r}");
+        assert!(g <= 20, "expected near-black green, got {g}");
+        assert!(b <= 20, "expected near-black blue, got {b}");
+    }
+
+    #[test]
+    fn test_yuv_to_rgb_white() {
+        // Y=235, Cr/Cb=128 → approximately white
+        let (r, g, b) = yuv_to_rgb(235, 128, 128);
+        assert!(r >= 230, "expected near-white red, got {r}");
+        assert!(g >= 230, "expected near-white green, got {g}");
+        assert!(b >= 230, "expected near-white blue, got {b}");
+    }
+
+    #[test]
+    fn test_yuv_to_rgb_red() {
+        // High Cr produces red tint
+        let (r, g, b) = yuv_to_rgb(128, 240, 128);
+        assert!(r > g);
+        assert!(r > b);
+    }
+
+    #[test]
+    fn test_yuv_to_rgb_blue() {
+        // High Cb produces blue tint
+        let (r, g, b) = yuv_to_rgb(128, 128, 240);
+        assert!(b > r);
+        assert!(b > g);
+    }
+
+    // ── clamp ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_clamp_in_range() {
+        assert_eq!(clamp(0.0), 0);
+        assert_eq!(clamp(128.0), 128);
+        assert_eq!(clamp(255.0), 255);
+    }
+
+    #[test]
+    fn test_clamp_below_zero() {
+        assert_eq!(clamp(-10.0), 0);
+        assert_eq!(clamp(-100.0), 0);
+    }
+
+    #[test]
+    fn test_clamp_above_255() {
+        assert_eq!(clamp(256.0), 255);
+        assert_eq!(clamp(1000.0), 255);
+    }
+
+    #[test]
+    fn test_clamp_rounding() {
+        assert_eq!(clamp(127.6), 128);
+        assert_eq!(clamp(127.4), 127);
+    }
+
+    // ── read_seg_header ─────────────────────────────────────────
+
+    #[test]
+    fn test_read_seg_header_with_headers_valid() {
+        // Build a segment: "PG" magic + 4-byte PTS + 4-byte DTS + type + size
+        let mut data = vec![0x50, 0x47]; // "PG"
+        data.extend_from_slice(&[0; 8]); // PTS + DTS
+        data.push(0x16); // PCS type
+        data.extend_from_slice(&[0x00, 0x0A]); // size = 10
+        let result = read_seg_header(&data, 0, true);
+        assert_eq!(result, Some((0x16, 10)));
+    }
+
+    #[test]
+    fn test_read_seg_header_with_headers_no_magic() {
+        let data = [0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0x16, 0x00, 0x0A];
+        let result = read_seg_header(&data, 0, true);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_read_seg_header_without_headers() {
+        let data = [0x16, 0x00, 0x0A]; // type=0x16, size=10
+        let result = read_seg_header(&data, 0, false);
+        assert_eq!(result, Some((0x16, 10)));
+    }
+
+    // ── parse_pds ───────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_pds_single_entry() {
+        let mut palette = [(0u8, 0u8, 0u8, 0u8); 256];
+        let seg = [
+            0x00, 0x00, // palette_id + version
+            0x00, // index 0
+            0x10, 0x80, 0x80, 0xFF, // Y=16, Cr=128, Cb=128, A=255
+        ];
+        parse_pds(&seg, &mut palette);
+        assert_eq!(palette[0], (0x10, 0x80, 0x80, 0xFF));
+        // Other entries should be untouched
+        assert_eq!(palette[1], (0, 0, 0, 0));
+    }
+
+    #[test]
+    fn test_parse_pds_multiple_entries() {
+        let mut palette = [(0u8, 0u8, 0u8, 0u8); 256];
+        let seg = [
+            0x00, 0x00, // palette_id + version
+            0x00, 0xFF, 0x80, 0x80, 0xFF, // idx=0: white
+            0x01, 0x00, 0x80, 0x80, 0xFF, // idx=1: black
+        ];
+        parse_pds(&seg, &mut palette);
+        assert_eq!(palette[0], (0xFF, 0x80, 0x80, 0xFF));
+        assert_eq!(palette[1], (0x00, 0x80, 0x80, 0xFF));
+    }
+
+    #[test]
+    fn test_parse_pds_index_out_of_bounds() {
+        let mut palette = [(0u8, 0u8, 0u8, 0u8); 256];
+        let seg = [
+            0x00, 0x00, 0xFF, 0x10, 0x80, 0x80, 0xFF, // idx=255, last valid
+        ];
+        parse_pds(&seg, &mut palette);
+        assert_eq!(palette[255], (0x10, 0x80, 0x80, 0xFF));
+    }
+
+    // ── parse_ods ───────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_ods_only_part() {
+        // object_id=1, version=0, seq=0xC0 (only part), data_len includes 4-byte header
+        // header (4): width=8, height=6
+        // RLE data: two bytes
+        let seg = [
+            0x00, 0x01, // object_id=1
+            0x00, // version
+            0xC0, // seq = only (first+last)
+            0x00, 0x00, 0x06, // data_len = 6 (4 header + 2 data)
+            0x00, 0x08, // width=8
+            0x00, 0x06, // height=6
+            0xAA, 0xBB, // RLE data
+        ];
+        let part = parse_ods(&seg).unwrap();
+        assert_eq!(part.object_id, 1);
+        assert!(part.first);
+        assert!(part.last);
+        assert_eq!(part.width, 8);
+        assert_eq!(part.height, 6);
+        assert_eq!(part.rle_data, vec![0xAA, 0xBB]);
+    }
+
+    #[test]
+    fn test_parse_ods_first_part() {
+        let seg = [
+            0x00, 0x01, 0x00, 0x40, // seq=0x40 (first)
+            0x00, 0x00, 0x06, 0x00, 0x08, 0x00, 0x06, 0xCC, 0xDD,
+        ];
+        let part = parse_ods(&seg).unwrap();
+        assert!(part.first);
+        assert!(!part.last);
+    }
+
+    #[test]
+    fn test_parse_ods_last_part() {
+        // seq=0x80 (last, no width/height header)
+        let seg = [
+            0x00, 0x01, 0x00, 0x80, // seq=0x80 (last)
+            0x00, 0x00, 0x02, // data_len=2 (no header)
+            0xEE, 0xFF, // RLE data
+        ];
+        let part = parse_ods(&seg).unwrap();
+        assert!(!part.first);
+        assert!(part.last);
+        assert_eq!(part.width, 0);
+        assert_eq!(part.height, 0);
+        assert_eq!(part.rle_data, vec![0xEE, 0xFF]);
+    }
+
+    #[test]
+    fn test_parse_ods_too_short() {
+        assert_eq!(parse_ods(&[0x00, 0x01, 0x00]), None);
+    }
+
+    // ── parse_pcs ───────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_pcs_single_object() {
+        let mut w = 0u32;
+        let mut h = 0u32;
+        let mut objects: Vec<(u16, u16, u16)> = Vec::new();
+        // PCS header: 2b width + 2b height + 1b frame_rate + 5b padding = 10 bytes
+        // seg[10] = num_objects
+        let seg = [
+            0x07, 0x80, // width = 1920
+            0x04, 0x38, // height = 1080
+            0x00, // frame_rate
+            0x00, 0x00, // palette_update_flag + palette_id
+            0x00, 0x00, // sequence_number
+            0x00, // last pad byte (5 bytes padding total)
+            0x01, // num_objects = 1 (at index 10)
+            0x00, 0x01, // object_id = 1
+            0x00, // window_id
+            0x00, // forced flag
+            0x00, 0x64, // x = 100
+            0x00, 0xC8, // y = 200
+        ];
+        parse_pcs(&seg, &mut w, &mut h, &mut objects);
+        assert_eq!(w, 1920);
+        assert_eq!(h, 1080);
+        assert_eq!(objects, vec![(1, 100, 200)]);
+    }
+
+    #[test]
+    fn test_parse_pcs_too_short() {
+        let mut w = 1u32;
+        let mut h = 1u32;
+        let mut objects: Vec<(u16, u16, u16)> = Vec::new();
+        parse_pcs(&[0; 5], &mut w, &mut h, &mut objects);
+        // Should not panic, w and h unchanged
+        assert_eq!(w, 1);
+        assert_eq!(h, 1);
+    }
+
+    // ── decode_rle ──────────────────────────────────────────────
+
+    #[test]
+    fn test_decode_rle_simple_nonzero() {
+        // RLE requires explicit end-of-line markers (0x00 0x00).
+        // Use a single-row layout to avoid needing them.
+        let data = vec![0x01, 0x02, 0x03, 0x04];
+        let result = decode_rle(&data, 4, 1);
+        assert_eq!(result, vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_decode_rle_end_of_line() {
+        // 0x00 0x00 = end of line (move to next row)
+        let data = vec![0x01, 0x00, 0x00, 0x02];
+        let result = decode_rle(&data, 1, 2);
+        assert_eq!(result, vec![1, 2]); // pixel[0][0]=1, pixel[1][0]=2
+    }
+
+    #[test]
+    fn test_decode_rle_run_fill_small() {
+        // 0x00 followed by byte in range [0x80, 0xC0): small fill run.
+        // 0x83 & 0x3F = 3 → fill 3 pixels with next byte (0xFF).
+        let data = vec![0x00, 0x83, 0xFF];
+        let result = decode_rle(&data, 5, 1);
+        assert_eq!(result[0..3], [0xFF, 0xFF, 0xFF]);
+        assert_eq!(result[3], 0);
+        assert_eq!(result[4], 0);
+    }
+
+    #[test]
+    fn test_decode_rle_run_skip_small() {
+        // 0x00 0x03 = skip 3 pixels (transparent)
+        let data = vec![0xAA, 0x00, 0x03, 0xBB];
+        let result = decode_rle(&data, 10, 1);
+        assert_eq!(result[0], 0xAA);
+        assert_eq!(result[1], 0);
+        assert_eq!(result[2], 0);
+        assert_eq!(result[3], 0);
+        assert_eq!(result[4], 0xBB);
+    }
+
+    // ── fill_pixels ─────────────────────────────────────────────
+
+    #[test]
+    fn test_fill_pixels_basic() {
+        let mut pixels = vec![0u8; 10];
+        fill_pixels(&mut pixels, 5, 0, 1, 3, 0xFF);
+        assert_eq!(pixels[0], 0);
+        assert_eq!(pixels[1], 0xFF);
+        assert_eq!(pixels[2], 0xFF);
+        assert_eq!(pixels[3], 0xFF);
+        assert_eq!(pixels[4], 0);
+    }
+
+    #[test]
+    fn test_fill_pixels_out_of_bounds() {
+        let mut pixels = vec![0u8; 5];
+        fill_pixels(&mut pixels, 5, 0, 3, 10, 0xFF);
+        // Only pixels 3 and 4 should be filled (within bounds)
+        assert_eq!(pixels[3], 0xFF);
+        assert_eq!(pixels[4], 0xFF);
+    }
+
+    // ── merge_ods_parts ─────────────────────────────────────────
+
+    #[test]
+    fn test_merge_ods_parts_single() {
+        let parts = vec![OdsPart {
+            object_id: 1,
+            first: true,
+            last: true,
+            width: 8,
+            height: 6,
+            rle_data: vec![0xAA, 0xBB],
+        }];
+        let result = merge_ods_parts(&parts);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, 1);
+        assert_eq!(result[0].3, vec![0xAA, 0xBB]);
+    }
+
+    #[test]
+    fn test_merge_ods_parts_multi() {
+        let parts = vec![
+            OdsPart {
+                object_id: 1,
+                first: true,
+                last: false,
+                width: 8,
+                height: 6,
+                rle_data: vec![0x01, 0x02],
+            },
+            OdsPart {
+                object_id: 1,
+                first: false,
+                last: true,
+                width: 0,
+                height: 0,
+                rle_data: vec![0x03, 0x04],
+            },
+        ];
+        let result = merge_ods_parts(&parts);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].3, vec![0x01, 0x02, 0x03, 0x04]);
+    }
+
+    // ── indices_to_rgba ─────────────────────────────────────────
+
+    #[test]
+    fn test_indices_to_rgba_single() {
+        let palette = &mut [(0u8, 0u8, 0u8, 0u8); 256];
+        palette[0] = (16, 128, 128, 255); // black
+        let indices = vec![0u8];
+        let rgba = indices_to_rgba(palette, &indices);
+        assert_eq!(rgba.len(), 4);
+        assert_eq!(rgba[3], 255); // alpha
+    }
+
+    // ── decode (full display set) ───────────────────────────────
+
+    #[test]
+    fn test_decode_empty_data() {
+        assert_eq!(decode(&[]), None);
+    }
+
+    #[test]
+    fn test_decode_non_pgs_data() {
+        assert_eq!(decode(&[0xFF, 0xFF, 0xFF, 0xFF]), None);
+    }
+
+    // ── parse_sup ───────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_sup_empty() {
+        assert!(parse_sup(&[]).is_empty());
+    }
+
+    #[test]
+    fn test_parse_sup_no_magic() {
+        let data = [0x00u8; 20];
+        assert!(parse_sup(&data).is_empty());
+    }
+
+    #[test]
+    fn test_parse_sup_truncated() {
+        // Only 10 bytes — less than the 13-byte minimum header
+        let data = [0x50, 0x47, 0, 0, 0, 0, 0, 0, 0, 0];
+        assert!(parse_sup(&data).is_empty());
+    }
 }

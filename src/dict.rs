@@ -147,6 +147,172 @@ fn lookup_english(word: &str) -> (String, Vec<DictSection>, Vec<String>) {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── clean_translation ───────────────────────────────────────
+
+    #[test]
+    fn test_clean_translation_normal() {
+        assert_eq!(clean_translation("hello"), "hello");
+    }
+
+    #[test]
+    fn test_clean_translation_empty() {
+        assert_eq!(clean_translation(""), "");
+        assert_eq!(clean_translation("   "), "");
+    }
+
+    #[test]
+    fn test_clean_translation_mymemory_warning() {
+        assert_eq!(
+            clean_translation("MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS"),
+            ""
+        );
+    }
+
+    #[test]
+    fn test_clean_translation_distinct_languages() {
+        assert_eq!(
+            clean_translation("PLEASE SELECT TWO DISTINCT LANGUAGES"),
+            ""
+        );
+    }
+
+    #[test]
+    fn test_clean_translation_trims() {
+        assert_eq!(clean_translation("  hello  "), "hello");
+    }
+
+    // ── extract_dict_info ───────────────────────────────────────
+
+    fn make_entry(
+        phonetic: Option<&str>,
+        phonetics: Vec<&str>,
+        meanings: Vec<(&str, Vec<(String, Option<String>)>)>,
+    ) -> DictEntry {
+        DictEntry {
+            word: "test".to_string(),
+            phonetic: phonetic.map(|s| s.to_string()),
+            phonetics: phonetics
+                .iter()
+                .map(|t| DictPhonetic {
+                    text: Some(t.to_string()),
+                    audio: None,
+                })
+                .collect(),
+            meanings: meanings
+                .iter()
+                .map(|(pos, defs)| DictMeaning {
+                    part_of_speech: pos.to_string(),
+                    definitions: defs
+                        .iter()
+                        .map(|(d, ex)| DictDefinition {
+                            definition: d.clone(),
+                            example: ex.clone(),
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn test_extract_dict_info_with_phonetic() {
+        let entry = make_entry(Some("/test/"), vec![], vec![]);
+        let (phonetic, sections, examples) = extract_dict_info(&entry);
+        assert_eq!(phonetic, "/test/");
+        assert!(sections.is_empty());
+        assert!(examples.is_empty());
+    }
+
+    #[test]
+    fn test_extract_dict_info_phonetic_from_phonetics() {
+        let entry = make_entry(None, vec!["/teɪk/"], vec![]);
+        let (phonetic, _, _) = extract_dict_info(&entry);
+        assert_eq!(phonetic, "/teɪk/");
+    }
+
+    #[test]
+    fn test_extract_dict_info_prefers_phonetic_field() {
+        let entry = make_entry(Some("/primary/"), vec!["/secondary/"], vec![]);
+        let (phonetic, _, _) = extract_dict_info(&entry);
+        assert_eq!(phonetic, "/primary/");
+    }
+
+    #[test]
+    fn test_extract_dict_info_meanings() {
+        let meanings = vec![(
+            "noun",
+            vec![
+                ("A test".to_string(), None),
+                ("Another test".to_string(), None),
+            ],
+        )];
+        let entry = make_entry(None, vec![], meanings);
+        let (_, sections, _) = extract_dict_info(&entry);
+        assert_eq!(sections.len(), 1);
+        assert_eq!(sections[0].part_of_speech, "noun");
+        assert_eq!(sections[0].definitions.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_dict_info_examples_deduplicated() {
+        let meanings = vec![(
+            "verb",
+            vec![
+                (
+                    "Meaning 1".to_string(),
+                    Some("Example sentence.".to_string()),
+                ),
+                (
+                    "Meaning 2".to_string(),
+                    Some("Example sentence.".to_string()),
+                ),
+            ],
+        )];
+        let entry = make_entry(None, vec![], meanings);
+        let (_, _, examples) = extract_dict_info(&entry);
+        assert_eq!(examples, vec!["Example sentence."]);
+    }
+
+    #[test]
+    fn test_extract_dict_info_examples_max_five() {
+        let meanings = vec![(
+            "adj",
+            (0..7)
+                .map(|i| (format!("d{i}"), Some(format!("ex{i}"))))
+                .collect::<Vec<_>>(),
+        )];
+        let entry = make_entry(None, vec![], meanings);
+        let (_, _, examples) = extract_dict_info(&entry);
+        assert!(examples.len() <= 5);
+    }
+
+    #[test]
+    fn test_extract_dict_info_max_three_defs_per_pos() {
+        let meanings = vec![(
+            "noun",
+            (0..5)
+                .map(|i| (format!("def{i}"), None))
+                .collect::<Vec<_>>(),
+        )];
+        let entry = make_entry(None, vec![], meanings);
+        let (_, sections, _) = extract_dict_info(&entry);
+        assert_eq!(sections[0].definitions.len(), 3);
+    }
+
+    #[test]
+    fn test_extract_dict_info_empty() {
+        let entry = make_entry(None, vec![], vec![]);
+        let (phonetic, sections, examples) = extract_dict_info(&entry);
+        assert_eq!(phonetic, "");
+        assert!(sections.is_empty());
+        assert!(examples.is_empty());
+    }
+}
+
 fn extract_dict_info(e: &DictEntry) -> (String, Vec<DictSection>, Vec<String>) {
     let phonetic = e
         .phonetic

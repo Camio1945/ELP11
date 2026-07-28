@@ -55,4 +55,62 @@ mod tests {
         assert!(!is_video_file(Path::new("video.txt")));
         assert!(!is_video_file(Path::new("video.jpg")));
     }
+
+    #[test]
+    fn test_is_video_file_all_extensions() {
+        for ext in VIDEO_EXTENSIONS {
+            let path = format!("video.{ext}");
+            assert!(
+                is_video_file(Path::new(&path)),
+                "expected {ext} to be a video extension"
+            );
+        }
+    }
+
+    #[test]
+    fn test_is_video_file_no_extension() {
+        assert!(!is_video_file(Path::new("video")));
+    }
+
+    #[test]
+    fn test_is_video_file_uppercase() {
+        assert!(is_video_file(Path::new("video.MP4")));
+        assert!(is_video_file(Path::new("video.Mkv")));
+    }
+
+    #[test]
+    fn test_parent_directory_absolute() {
+        #[cfg(target_os = "windows")]
+        {
+            let result = parent_directory("C:\\Users\\test\\video.mp4");
+            assert_eq!(result, Some(std::path::PathBuf::from("C:\\Users\\test")));
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let result = parent_directory("/home/user/video.mp4");
+            assert_eq!(result, Some(std::path::PathBuf::from("/home/user")));
+        }
+    }
+
+    #[test]
+    fn test_parent_directory_relative() {
+        let result = parent_directory("videos/video.mp4");
+        assert_eq!(result, Some(std::path::PathBuf::from("videos")));
+    }
+
+    #[test]
+    fn test_parent_directory_root() {
+        #[cfg(not(target_os = "windows"))]
+        {
+            let result = parent_directory("/video.mp4");
+            assert_eq!(result, Some(std::path::PathBuf::from("/")));
+        }
+    }
+
+    #[test]
+    fn test_scan_directory_for_videos_empty() {
+        // Scanning a non-existent directory returns empty
+        let result = scan_directory_for_videos(Path::new("/nonexistent/dir/12345"));
+        assert!(result.is_empty());
+    }
 }

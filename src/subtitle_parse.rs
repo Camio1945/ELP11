@@ -133,6 +133,38 @@ fn parse_timestamp(s: &str) -> Option<f64> {
 mod tests {
     use super::*;
 
+    // ── parse_timestamp ─────────────────────────────────────────
+
+    #[test]
+    fn test_parse_timestamp_hh_mm_ss() {
+        assert_eq!(parse_timestamp("01:02:03.000"), Some(3723.0));
+        assert_eq!(parse_timestamp("00:00:01.500"), Some(1.5));
+    }
+
+    #[test]
+    fn test_parse_timestamp_mm_ss() {
+        assert_eq!(parse_timestamp("05:30.000"), Some(330.0));
+        assert_eq!(parse_timestamp("01:00.000"), Some(60.0));
+    }
+
+    #[test]
+    fn test_parse_timestamp_with_comma() {
+        assert_eq!(parse_timestamp("00:00:01,500"), Some(1.5));
+    }
+
+    #[test]
+    fn test_parse_timestamp_empty() {
+        assert_eq!(parse_timestamp(""), None);
+    }
+
+    #[test]
+    fn test_parse_timestamp_invalid() {
+        assert_eq!(parse_timestamp("not a timestamp"), None);
+        assert_eq!(parse_timestamp("12"), None);
+    }
+
+    // ── parse_block_timed ───────────────────────────────────────
+
     #[test]
     fn parse_srt() {
         let srt =
@@ -168,6 +200,29 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_block_timed_empty() {
+        let cues = parse_block_timed("");
+        assert!(cues.is_empty());
+    }
+
+    #[test]
+    fn test_parse_block_timed_no_arrow() {
+        let cues = parse_block_timed("1\nHello World\n");
+        assert!(cues.is_empty());
+    }
+
+    #[test]
+    fn test_parse_block_timed_single_cue() {
+        let srt = "1\n00:00:01,000 --> 00:00:03,000\nHello\n";
+        let cues = parse_block_timed(srt);
+        assert_eq!(cues.len(), 1);
+        assert_eq!(cues[0].start, 1.0);
+        assert_eq!(cues[0].end, 3.0);
+    }
+
+    // ── parse_ass ───────────────────────────────────────────────
+
+    #[test]
     fn parse_ass_dialogue() {
         let ass = "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, Effect, Text\nDialogue: 0,0:00:01.00,0:00:03.50,Default,,0,0,0,Hello\nDialogue: 0,0:00:05.00,0:00:07.00,Default,,0,0,0,World\n";
         let cues = parse_ass(ass);
@@ -175,5 +230,66 @@ mod tests {
         assert_eq!(cues[0].start, 1.0);
         assert_eq!(cues[0].end, 3.5);
         assert_eq!(cues[1].start, 5.0);
+    }
+
+    #[test]
+    fn test_parse_ass_empty() {
+        assert!(parse_ass("").is_empty());
+    }
+
+    #[test]
+    fn test_parse_ass_not_in_events() {
+        let ass = "[Script Info]\nDialogue: 0,0:00:01.00,0:00:03.50,Default,,0,0,0,Hello\n";
+        let cues = parse_ass(ass);
+        assert!(cues.is_empty());
+    }
+
+    #[test]
+    fn test_parse_ass_no_format() {
+        let ass = "[Events]\nDialogue: 0,0:00:01.00,0:00:03.50,Default,,0,0,0,Hello\n";
+        let cues = parse_ass(ass);
+        // Without a Format: line, parse_ass_dialogue returns None
+        assert!(cues.is_empty());
+    }
+
+    // ── parse_ass_dialogue ──────────────────────────────────────
+
+    #[test]
+    fn test_ass_dialogue_missing_fields() {
+        let format = Some(
+            vec!["layer", "start", "end", "style"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+        );
+        // Missing start field values — use super:: to avoid shadowing by the test fn above
+        assert_eq!(
+            super::parse_ass_dialogue("0,,3.50,Default", format.as_deref()),
+            None
+        );
+    }
+
+    // ── SubtitleCue ─────────────────────────────────────────────
+
+    #[test]
+    fn test_subtitle_cue_debug() {
+        let cue = SubtitleCue {
+            start: 1.0,
+            end: 3.0,
+        };
+        assert_eq!(cue.start, 1.0);
+        assert_eq!(cue.end, 3.0);
+    }
+
+    #[test]
+    fn test_subtitle_cue_clone_eq() {
+        let cue1 = SubtitleCue {
+            start: 1.0,
+            end: 3.0,
+        };
+        let cue2 = cue1;
+        assert_eq!(cue1, cue2);
+        let cue3 = cue1;
+        assert_eq!(cue1, cue3);
     }
 }

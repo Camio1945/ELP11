@@ -21,11 +21,11 @@ fn icon_btn(icon_data: &[u8]) -> Svg<'_> {
 
 // ── Transport controls ──────────────────────────────────────────────────
 
-pub(crate) fn skip_back_10_btn() -> Button<'static, Message> {
-    Button::new(icon_btn(icons::SKIP_BACK_10))
+pub(crate) fn skip_back_30_btn() -> Button<'static, Message> {
+    Button::new(icon_btn(icons::SKIP_BACK_30))
         .padding([0, BTN_HORIZ_PAD])
         .height(Length::Fixed(BTN_HEIGHT))
-        .on_press(Message::SkipBack(10))
+        .on_press(Message::SkipBack(30))
         .style(styles::rewind_btn)
 }
 
@@ -57,11 +57,11 @@ pub(crate) fn skip_forward_5_btn() -> Button<'static, Message> {
         .style(styles::forward_btn)
 }
 
-pub(crate) fn skip_forward_10_btn() -> Button<'static, Message> {
-    Button::new(icon_btn(icons::SKIP_FORWARD_10))
+pub(crate) fn skip_forward_30_btn() -> Button<'static, Message> {
+    Button::new(icon_btn(icons::SKIP_FORWARD_30))
         .padding([0, BTN_HORIZ_PAD])
         .height(Length::Fixed(BTN_HEIGHT))
-        .on_press(Message::SkipForward(10))
+        .on_press(Message::SkipForward(30))
         .style(styles::forward_btn)
 }
 

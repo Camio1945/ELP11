@@ -2,7 +2,7 @@
 /// Every shape is centered at viewBox center (12, 12) so that when each
 /// SVG is rendered at the same size, the icon centers line up exactly.
 
-pub const SKIP_BACK_10: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+pub const SKIP_BACK_30: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <path d="M5 12L11 4V20Z M13 12L19 4V20Z" fill="currentColor"/>
 </svg>"#;
 
@@ -22,7 +22,7 @@ pub const SKIP_FORWARD_5: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www
   <path d="M19 12L9 4V20Z" fill="currentColor"/>
 </svg>"#;
 
-pub const SKIP_FORWARD_10: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+pub const SKIP_FORWARD_30: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <path d="M11 12L5 4V20Z M19 12L13 4V20Z" fill="currentColor"/>
 </svg>"#;
 

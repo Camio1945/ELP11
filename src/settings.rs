@@ -117,6 +117,220 @@ impl AppSettings {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Default ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_default_values() {
+        let settings = AppSettings::default();
+        assert_eq!(settings.subtitle_font_size, 20.0);
+        assert!(settings.history_enabled);
+        assert_eq!(settings.max_history_items, 100);
+        assert!(settings.recent_files.is_empty());
+        assert!(settings.playback_positions.is_empty());
+    }
+
+    // ── Font size ───────────────────────────────────────────────
+
+    #[test]
+    fn test_increase_font_normal() {
+        let mut s = AppSettings::default();
+        s.subtitle_font_size = 20.0;
+        s.increase_font();
+        assert_eq!(s.subtitle_font_size, 22.0);
+    }
+
+    #[test]
+    fn test_increase_font_at_max() {
+        let mut s = AppSettings::default();
+        s.subtitle_font_size = AppSettings::MAX_FONT_SIZE;
+        s.increase_font();
+        assert_eq!(s.subtitle_font_size, AppSettings::MAX_FONT_SIZE);
+    }
+
+    #[test]
+    fn test_increase_font_near_max() {
+        let mut s = AppSettings::default();
+        s.subtitle_font_size = AppSettings::MAX_FONT_SIZE - 1.0;
+        s.increase_font();
+        // Clamped to MAX_FONT_SIZE (since 47 + 2 = 49 > 48, min(49, 48) = 48)
+        assert_eq!(s.subtitle_font_size, AppSettings::MAX_FONT_SIZE);
+    }
+
+    #[test]
+    fn test_decrease_font_normal() {
+        let mut s = AppSettings::default();
+        s.subtitle_font_size = 20.0;
+        s.decrease_font();
+        assert_eq!(s.subtitle_font_size, 18.0);
+    }
+
+    #[test]
+    fn test_decrease_font_at_min() {
+        let mut s = AppSettings::default();
+        s.subtitle_font_size = AppSettings::MIN_FONT_SIZE;
+        s.decrease_font();
+        assert_eq!(s.subtitle_font_size, AppSettings::MIN_FONT_SIZE);
+    }
+
+    // ── History items ───────────────────────────────────────────
+
+    #[test]
+    fn test_increase_max_history_normal() {
+        let mut s = AppSettings::default();
+        s.max_history_items = 100;
+        s.increase_max_history();
+        assert_eq!(s.max_history_items, 110);
+    }
+
+    #[test]
+    fn test_increase_max_history_at_max() {
+        let mut s = AppSettings::default();
+        s.max_history_items = AppSettings::MAX_HISTORY_ITEMS;
+        s.increase_max_history();
+        assert_eq!(s.max_history_items, AppSettings::MAX_HISTORY_ITEMS);
+    }
+
+    #[test]
+    fn test_decrease_max_history_normal() {
+        let mut s = AppSettings::default();
+        s.max_history_items = 100;
+        s.decrease_max_history();
+        assert_eq!(s.max_history_items, 90);
+    }
+
+    #[test]
+    fn test_decrease_max_history_at_min() {
+        let mut s = AppSettings::default();
+        s.max_history_items = AppSettings::MIN_HISTORY_ITEMS;
+        s.decrease_max_history();
+        assert_eq!(s.max_history_items, AppSettings::MIN_HISTORY_ITEMS);
+    }
+
+    #[test]
+    fn test_decrease_max_history_truncates_recent_files() {
+        let mut s = AppSettings::default();
+        s.max_history_items = 15;
+        s.add_recent_file("a");
+        s.add_recent_file("b");
+        s.add_recent_file("c");
+        // After decreasing to min (10), files beyond 10 are truncated
+        s.decrease_max_history(); // 15 - 10 = 5 → clamped to MIN(10)
+        assert_eq!(s.max_history_items, AppSettings::MIN_HISTORY_ITEMS);
+        assert!(s.recent_files.len() <= AppSettings::MIN_HISTORY_ITEMS);
+    }
+
+    // ── add_recent_file ─────────────────────────────────────────
+
+    #[test]
+    fn test_add_recent_file_basic() {
+        let mut s = AppSettings::default();
+        s.add_recent_file("video1.mp4");
+        assert_eq!(s.recent_files, vec!["video1.mp4"]);
+    }
+
+    #[test]
+    fn test_add_recent_file_deduplicates() {
+        let mut s = AppSettings::default();
+        s.add_recent_file("a.mp4");
+        s.add_recent_file("b.mp4");
+        s.add_recent_file("a.mp4"); // duplicate — moved to front
+        assert_eq!(s.recent_files, vec!["a.mp4", "b.mp4"]);
+    }
+
+    #[test]
+    fn test_add_recent_file_empty_path() {
+        let mut s = AppSettings::default();
+        s.add_recent_file("");
+        assert!(s.recent_files.is_empty());
+    }
+
+    #[test]
+    fn test_add_recent_file_history_disabled() {
+        let mut s = AppSettings::default();
+        s.history_enabled = false;
+        s.add_recent_file("video.mp4");
+        assert!(s.recent_files.is_empty());
+    }
+
+    #[test]
+    fn test_add_recent_file_truncates() {
+        let mut s = AppSettings::default();
+        s.max_history_items = 3;
+        for i in 0..5 {
+            s.add_recent_file(&format!("video{i}.mp4"));
+        }
+        assert_eq!(s.recent_files.len(), 3);
+        // Most recent first
+        assert_eq!(s.recent_files[0], "video4.mp4");
+    }
+
+    // ── set_resume_position ─────────────────────────────────────
+
+    #[test]
+    fn test_set_resume_position_basic() {
+        let mut s = AppSettings::default();
+        s.add_recent_file("/path/to/video.mp4");
+        s.set_resume_position("/path/to/video.mp4", 42.5);
+        assert_eq!(s.playback_positions.get("/path/to/video.mp4"), Some(&42.5));
+    }
+
+    #[test]
+    fn test_set_resume_position_empty_path() {
+        let mut s = AppSettings::default();
+        s.set_resume_position("", 10.0);
+        assert!(s.playback_positions.is_empty());
+    }
+
+    #[test]
+    fn test_set_resume_position_prunes_orphaned() {
+        let mut s = AppSettings::default();
+        s.add_recent_file("/path/to/video.mp4");
+        // Set a position for a file that isn't in recent_files
+        s.playback_positions
+            .insert("/old/stale.mp4".to_string(), 100.0);
+        s.set_resume_position("/path/to/video.mp4", 50.0);
+        // The stale entry should be pruned
+        assert!(!s.playback_positions.contains_key("/old/stale.mp4"));
+        assert_eq!(s.playback_positions.get("/path/to/video.mp4"), Some(&50.0));
+    }
+
+    // ── prune_resume_positions ──────────────────────────────────
+
+    #[test]
+    fn test_prune_resume_positions_keeps_tracked() {
+        let mut s = AppSettings::default();
+        s.add_recent_file("a.mp4");
+        s.playback_positions.insert("a.mp4".to_string(), 10.0);
+        s.playback_positions.insert("orphan.mp4".to_string(), 20.0);
+        s.prune_resume_positions();
+        assert!(s.playback_positions.contains_key("a.mp4"));
+        assert!(!s.playback_positions.contains_key("orphan.mp4"));
+    }
+
+    #[test]
+    fn test_prune_resume_positions_empty() {
+        let mut s = AppSettings::default();
+        s.prune_resume_positions();
+        assert!(s.playback_positions.is_empty());
+    }
+
+    // ── Constants ───────────────────────────────────────────────
+
+    #[test]
+    fn test_constants_values() {
+        assert_eq!(AppSettings::MIN_FONT_SIZE, 12.0);
+        assert_eq!(AppSettings::MAX_FONT_SIZE, 48.0);
+        assert_eq!(AppSettings::FONT_STEP, 2.0);
+        assert_eq!(AppSettings::MIN_HISTORY_ITEMS, 10);
+        assert_eq!(AppSettings::MAX_HISTORY_ITEMS, 1000);
+        assert_eq!(AppSettings::HISTORY_STEP, 10);
+    }
+}
+
 fn config_dir() -> std::io::Result<PathBuf> {
     let base = if cfg!(target_os = "windows") {
         std::env::var("APPDATA")

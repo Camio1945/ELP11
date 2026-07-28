@@ -22,6 +22,47 @@ pub fn parse_cli_args(args: &[String]) -> (Option<String>, Option<String>) {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_cli_args_empty() {
+        let args: &[String] = &[];
+        let (video, subtitle) = parse_cli_args(args);
+        assert_eq!(video, None);
+        assert_eq!(subtitle, None);
+    }
+
+    #[test]
+    fn test_parse_cli_args_video_only() {
+        let args = &["video.mp4".to_string()];
+        let (video, subtitle) = parse_cli_args(args);
+        assert_eq!(video, Some("video.mp4".to_string()));
+        assert_eq!(subtitle, None);
+    }
+
+    #[test]
+    fn test_parse_cli_args_video_and_subtitle() {
+        let args = &["video.mp4".to_string(), "subtitle.srt".to_string()];
+        let (video, subtitle) = parse_cli_args(args);
+        assert_eq!(video, Some("video.mp4".to_string()));
+        assert_eq!(subtitle, Some("subtitle.srt".to_string()));
+    }
+
+    #[test]
+    fn test_parse_cli_args_extra_args() {
+        let args = &[
+            "video.mp4".to_string(),
+            "subtitle.srt".to_string(),
+            "extra".to_string(),
+        ];
+        let (video, subtitle) = parse_cli_args(args);
+        assert_eq!(video, Some("video.mp4".to_string()));
+        assert_eq!(subtitle, Some("subtitle.srt".to_string())); // only first two used
+    }
+}
+
 /// Build a `file://` URL from a CLI argument string, emitting a warning
 /// and falling back to `file:///` when the path is not a valid URL.
 fn url_from_cli_path(path: &str) -> url::Url {
