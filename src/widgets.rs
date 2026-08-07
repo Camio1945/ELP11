@@ -12,37 +12,50 @@ const BTN_HEIGHT: f32 = 32.0;
 /// Horizontal padding inside control buttons.
 const BTN_HORIZ_PAD: u16 = 8;
 
-/// SVG icon sized to ICON_SIZE.
+/// SVG icon sized to ICON_SIZE — used by the transport controls.
 fn icon_btn(icon_data: &[u8]) -> Svg<'_> {
-    Svg::new(icons::svg_handle(icon_data))
-        .width(Length::Fixed(ICON_SIZE))
-        .height(Length::Fixed(ICON_SIZE))
+    sized_icon(icon_data, ICON_SIZE)
 }
+
+/// SVG icon sized to an explicit `size`. Use this when a single global
+/// `ICON_SIZE` doesn't fit every caller — for example, the circular
+/// utility buttons are 32×32 rather than the 36×36 play/pause button,
+/// so the icon inside them needs to be smaller to leave enough visual
+/// padding.
+fn sized_icon(icon_data: &[u8], size: f32) -> Svg<'_> {
+    Svg::new(icons::svg_handle(icon_data))
+        .width(Length::Fixed(size))
+        .height(Length::Fixed(size))
+}
+
+/// Side length of the icons used by the utility-cluster buttons
+/// (loop, mute, fullscreen). Sized to sit clearly inside the 32×32
+/// circle with comfortable padding after the SVG is centered by
+/// `centered_icon`. 12 leaves 10px of margin on every side, which
+/// reads as "icon inside a circle" rather than "icon crammed against
+/// the edge".
+const UTIL_ICON_SIZE: f32 = 12.0;
 
 /// Width/height of the square (circular) utility buttons — loop, mute,
 /// and fullscreen. Matches BTN_HEIGHT for visual consistency with the
 /// pill-shaped transport buttons next to them.
 const UTIL_BTN_SIZE: f32 = BTN_HEIGHT;
 
-/// Build a `Container` whose child icon is vertically centered within
-/// the parent's content area. Width stays at `Shrink` so the parent
-/// button's own width remains the controlling dimension (see note on
-/// `centered_icon` callers below) — without this, a previous version of
-/// the helper used `Length::Fill` for both axes, which caused each
-/// button's content to grab all available row width, turning every
-/// circular icon button into a wide pill.
+/// Build a fixed-size [`Container`] whose inner child is centered on
+/// both axes. Used to wrap the utility-cluster SVG glyphs so they
+/// sit at the geometric center of a 32×32 button — needed because
+/// `iced::widget::button::Button` uses `layout::padded` to position
+/// its content at `(padding.left, padding.top)` (top-left), not the
+/// center, so a smaller fixed-size child like `Sized::Fixed(14)` SVG
+/// would otherwise land at the top edge of the button.
 ///
-/// Why `height` Fill: Iced's `Container` only honors `align_x` /
-/// `align_y` when the container is wider/taller than its child.
-/// Without `height(Length::Fill)`, the container collapses to the
-/// text's line-box height and `align_y(Center)` becomes a no-op,
-/// leaving the icon pinned to the top of the button — the original bug
-/// the helper exists to fix.
-fn centered_icon<'a>(text: Text<'a>) -> Container<'a, Message> {
-    Container::new(text)
-        .height(Length::Fill)
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center)
+/// Using `Length::Fixed(UTIL_BTN_SIZE)` (not `Length::Fill`) for the
+/// container's size is critical — `Length::Fill` propagates up to the
+/// parent `Row` and turns the 32×32 buttons into wide pills. Fixed
+/// sizes keep the button widths and put centering entirely under our
+/// control.
+fn centered_icon<'a>(icon: Svg<'a>) -> Container<'a, Message> {
+    Container::new(icon).center(Length::Fixed(UTIL_BTN_SIZE))
 }
 
 // ── Transport controls ──────────────────────────────────────────────────
@@ -101,8 +114,13 @@ pub(crate) fn frame_step_btn() -> Button<'static, Message> {
 
 // ── Utility controls ────────────────────────────────────────────────────
 
+/// Circular loop toggle. Uses an SVG icon (not the previously used 🔁
+/// emoji) so the glyph renders at the exact size we set and centers
+/// reliably inside the button on every platform. Sized via
+/// `sized_icon` + `UTIL_ICON_SIZE` so it sits inside the 32×32 circle
+/// with sensible padding rather than crowding the edge.
 pub(crate) fn loop_btn<'a>(is_looping: bool) -> Button<'a, Message> {
-    Button::new(centered_icon(Text::new("\u{1F501}").size(14)))
+    Button::new(centered_icon(sized_icon(icons::LOOP, UTIL_ICON_SIZE)))
         .padding(0)
         .width(Length::Fixed(UTIL_BTN_SIZE))
         .height(Length::Fixed(UTIL_BTN_SIZE))
@@ -114,9 +132,12 @@ pub(crate) fn loop_btn<'a>(is_looping: bool) -> Button<'a, Message> {
         })
 }
 
+/// Circular mute toggle. Switches between two SVG glyphs (sized to
+/// `UTIL_ICON_SIZE`) so the icon stays aligned and proportionate
+/// inside the 32×32 button regardless of OS emoji font behavior.
 pub(crate) fn mute_btn<'a>(muted: bool) -> Button<'a, Message> {
-    let icon = if muted { "\u{1F507}" } else { "\u{1F50A}" };
-    Button::new(centered_icon(Text::new(icon).size(14)))
+    let icon = if muted { icons::MUTE } else { icons::VOLUME };
+    Button::new(centered_icon(sized_icon(icon, UTIL_ICON_SIZE)))
         .padding(0)
         .width(Length::Fixed(UTIL_BTN_SIZE))
         .height(Length::Fixed(UTIL_BTN_SIZE))
@@ -128,17 +149,27 @@ pub(crate) fn mute_btn<'a>(muted: bool) -> Button<'a, Message> {
         })
 }
 
+/// Text-only "Contain / Cover / ..." pill. Not a circular button —
+/// keeps its natural width based on the label.
 pub(crate) fn content_fit_btn<'a>(cf: iced::ContentFit) -> Button<'a, Message> {
     let text = Text::new(format!("{:?}", cf)).size(10);
-    Button::new(centered_icon(text))
-        .padding([4, 8])
-        .height(Length::Fixed(BTN_HEIGHT))
-        .on_press(Message::CycleContentFit)
-        .style(styles::fit_btn_style)
+    Button::new(
+        Container::new(text)
+            .center_y(Length::Fixed(BTN_HEIGHT))
+            .align_x(iced::alignment::Horizontal::Center),
+    )
+    .padding([4, 8])
+    .height(Length::Fixed(BTN_HEIGHT))
+    .on_press(Message::CycleContentFit)
+    .style(styles::fit_btn_style)
 }
 
+/// Circular fullscreen toggle. SVG icon sized to `UTIL_ICON_SIZE` and
+/// centered inside the 32×32 button (the construction matches
+/// `pause_play_btn`, which is the canonical example of a centered
+/// SVG inside a fixed-size button).
 pub(crate) fn fullscreen_btn<'a>() -> Button<'a, Message> {
-    Button::new(centered_icon(Text::new("\u{26F6}").size(14)))
+    Button::new(centered_icon(sized_icon(icons::FULLSCREEN, UTIL_ICON_SIZE)))
         .padding(0)
         .width(Length::Fixed(UTIL_BTN_SIZE))
         .height(Length::Fixed(UTIL_BTN_SIZE))
