@@ -30,6 +30,28 @@ pub const FRAME_STEP: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www.w3.
   <path d="M3 4H7V20H3Z M11 4V20L21 12Z" fill="currentColor"/>
 </svg>"#;
 
+// ── Window title-bar control icons ──────────────────────────────────────
+
+/// Minimize: short horizontal line.
+pub const MINIMIZE: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M5 13H19V11H5V13Z" fill="currentColor"/>
+</svg>"#;
+
+/// Maximize: square outline.
+pub const MAXIMIZE: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 4H20V20H4V4ZM6 6V18H18V6H6Z" fill="currentColor"/>
+</svg>"#;
+
+/// Restore (un-maximize): two overlapping squares.
+pub const RESTORE: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 8H8V4H20V16H16V20H4V8ZM6 18H14V10H6V18ZM10 8H16V6H18V14H16V10H10V8Z" fill="currentColor"/>
+</svg>"#;
+
+/// Close: ×.
+pub const CLOSE: &[u8] = br#"<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor"/>
+</svg>"#;
+
 /// Utility-cluster icons (loop / volume / fullscreen).
 ///
 /// These replace what used to be Unicode emoji glyphs ("🔁", "🔊",

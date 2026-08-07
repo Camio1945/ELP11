@@ -129,6 +129,7 @@ fn main() -> iced::Result {
             size: iced::Size::new(1280.0, 760.0),
             min_size: Some(iced::Size::new(800.0, 480.0)),
             maximized: true,
+            decorations: false,
             icon: boot::load_window_icon(),
             ..Default::default()
         })

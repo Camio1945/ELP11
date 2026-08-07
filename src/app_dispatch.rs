@@ -34,6 +34,10 @@ impl App {
             Message::AdjustVolume(d) => self.handle_adjust_volume(d),
             Message::Tick => self.handle_tick(),
             Message::SavePosition => self.handle_save_position(),
+            Message::WindowDrag => self.handle_window_drag(),
+            Message::Minimize => self.handle_minimize(),
+            Message::ToggleMaximize => self.handle_toggle_maximize(),
+            Message::Close => self.handle_close(),
             _ => self.dispatch_secondary(message),
         }
     }

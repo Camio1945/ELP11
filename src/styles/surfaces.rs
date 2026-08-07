@@ -42,10 +42,24 @@ pub fn sidebar_body(_: &Theme) -> container::Style {
 }
 
 /// Toolbar surface: dark bar separating menu from content.
+/// Kept for external use; the main layout now uses `title_bar_bg`.
+#[allow(dead_code)]
 pub fn toolbar_bg(_: &Theme) -> container::Style {
     container::Style {
         background: Some(Background::Color(SURFACE)),
         border: border::color(Color::from_rgb(0.20, 0.20, 0.20))
+            .width(1.0)
+            .rounded(0.0),
+        ..Default::default()
+    }
+}
+
+/// Title bar surface (frameless): same as toolbar but with a bottom border
+/// only, so the title bar blends into the dark UI below.
+pub fn title_bar_bg(_: &Theme) -> container::Style {
+    container::Style {
+        background: Some(Background::Color(SURFACE)),
+        border: border::color(Color::from_rgb(0.18, 0.18, 0.18))
             .width(1.0)
             .rounded(0.0),
         ..Default::default()

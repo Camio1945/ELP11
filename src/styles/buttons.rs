@@ -314,3 +314,36 @@ pub fn fullscreen_btn_style(_: &Theme, status: button::Status) -> button::Style 
         ..Default::default()
     }
 }
+
+// ── Frameless title-bar window control buttons ─────────────────────────
+
+/// Generic title-bar button (minimize / maximize): subtle dark with
+/// silver text, no visible background in normal state.
+pub fn title_bar_btn(_: &Theme, status: button::Status) -> button::Style {
+    let bg = match status {
+        button::Status::Hovered => Color::from_rgb(0.22, 0.22, 0.22),
+        button::Status::Pressed => Color::from_rgb(0.14, 0.14, 0.14),
+        _ => Color::TRANSPARENT,
+    };
+    button::Style {
+        background: Some(Background::Color(bg)),
+        text_color: Color::from_rgb(0.78, 0.78, 0.78),
+        border: border::rounded(0.0),
+        ..Default::default()
+    }
+}
+
+/// Close button: red background on hover/press, transparent otherwise.
+pub fn title_bar_close_btn(_: &Theme, status: button::Status) -> button::Style {
+    let (bg, fg) = match status {
+        button::Status::Hovered => (Color::from_rgb(0.91, 0.20, 0.20), Color::WHITE),
+        button::Status::Pressed => (Color::from_rgb(0.75, 0.12, 0.12), Color::WHITE),
+        _ => (Color::TRANSPARENT, Color::from_rgb(0.78, 0.78, 0.78)),
+    };
+    button::Style {
+        background: Some(Background::Color(bg)),
+        text_color: fg,
+        border: border::rounded(0.0),
+        ..Default::default()
+    }
+}

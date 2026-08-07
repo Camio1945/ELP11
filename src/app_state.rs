@@ -73,6 +73,14 @@ pub enum Message {
     PlaylistDropFiles(Vec<std::path::PathBuf>),
     /// A file was dropped onto the window (from window::Event::FileDropped).
     WindowFileDropped(std::path::PathBuf),
+    /// Start a window drag (frameless custom title bar).
+    WindowDrag,
+    /// Minimize the window.
+    Minimize,
+    /// Toggle between maximized and restored window state.
+    ToggleMaximize,
+    /// Close the window (exit the application).
+    Close,
 }
 
 pub enum VideoState {
@@ -124,6 +132,8 @@ pub struct App {
     pub playlist: Vec<String>,
     /// Index of the currently playing video in the playlist, if any.
     pub playlist_index: Option<usize>,
+    /// Whether the window is currently maximized (frameless mode).
+    pub maximized: bool,
 }
 
 impl Default for App {
@@ -160,6 +170,7 @@ impl Default for App {
             subtitle_visible: true,
             playlist: Vec::new(),
             playlist_index: None,
+            maximized: true,
         }
     }
 }

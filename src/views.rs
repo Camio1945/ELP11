@@ -2,6 +2,7 @@
 //!
 //! These functions construct the Iced widget tree for the video player UI.
 
+use crate::icons;
 use crate::NO_VIDEO_ICON;
 use crate::app_state::{App, Message, VideoState};
 use iced::{
@@ -9,7 +10,7 @@ use iced::{
     alignment::{Horizontal, Vertical},
     border,
     widget::{
-        Button, Column, Container, Image, MouseArea, PickList, Row, Slider, Space, Stack, Text,
+        Button, Column, Container, Image, MouseArea, PickList, Row, Slider, Space, Stack, Svg, Text,
         container, pick_list, text,
     },
 };
@@ -45,7 +46,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let layout = Column::new()
         .width(Length::Fill)
         .height(Length::Fill)
-        .push(build_toolbar(has_video))
+        .push(build_title_bar(app, has_video))
         .push(main_row);
 
     Container::new(layout)
@@ -124,35 +125,103 @@ fn build_text_subtitle_layer(text: &str, font_size: f32) -> Container<'_, Messag
     .padding([0, 48])
 }
 
-// ── Toolbar ─────────────────────────────────────────────────────────────
+// ── Title bar (frameless) ────────────────────────────────────────────────
 
-fn build_toolbar<'a>(has_video: bool) -> Element<'a, Message> {
+/// Height of the custom title bar and its window-control buttons.
+const TITLE_BAR_HEIGHT: f32 = 32.0;
+/// Size of the SVG icon inside each window-control button.
+const WIN_CTRL_ICON_SIZE: f32 = 14.0;
+
+fn build_title_bar<'a>(app: &App, has_video: bool) -> Element<'a, Message> {
+    let title_text = match &app.current_file_path {
+        Some(p) => {
+            let name = std::path::Path::new(p)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(p);
+            format!("{} - ELP11", name)
+        }
+        None => "ELP11".to_string(),
+    };
+
+    let title_text_el = Text::new(title_text)
+        .size(12)
+        .color(SILVER);
+
     Container::new(
         Row::new()
-            .spacing(8)
-            .padding([4, 12])
+            .width(Length::Fill)
+            .height(Length::Fixed(TITLE_BAR_HEIGHT))
             .align_y(Vertical::Center)
+            // ── Draggable title area ──
             .push(
-                Button::new(Text::new("OPEN").size(11))
-                    .padding([4, 14])
+                MouseArea::new(title_text_el)
+                    .on_press(Message::WindowDrag),
+            )
+            .push(Space::new().width(8))
+            // ── Toolbar buttons ──
+            .push(
+                Button::new(Text::new("OPEN").size(10))
+                    .padding([3, 10])
                     .on_press(Message::OpenFile)
                     .style(crate::styles::teal_btn),
             )
             .push(
-                Button::new(Text::new("SUBTITLE...").size(11))
-                    .padding([4, 14])
+                Button::new(Text::new("SUBTITLE...").size(10))
+                    .padding([3, 10])
                     .on_press_maybe(if has_video {
                         Some(Message::LoadSubtitle)
                     } else {
                         None
                     })
                     .style(crate::styles::purple_btn),
-            ),
+            )
+            .push(Space::new().width(Length::Fill))
+            // ── Window control buttons (min / max-restore / close) ──
+            .push(build_win_ctrl_btn(
+                icons::MINIMIZE,
+                Message::Minimize,
+                crate::styles::title_bar_btn,
+            ))
+            .push(build_win_ctrl_btn(
+                if app.maximized {
+                    icons::RESTORE
+                } else {
+                    icons::MAXIMIZE
+                },
+                Message::ToggleMaximize,
+                crate::styles::title_bar_btn,
+            ))
+            .push(build_win_ctrl_btn(
+                icons::CLOSE,
+                Message::Close,
+                crate::styles::title_bar_close_btn,
+            )),
     )
     .width(Length::Fill)
-    .style(crate::styles::toolbar_bg)
+    .height(Length::Fixed(TITLE_BAR_HEIGHT))
+    .style(crate::styles::title_bar_bg)
     .into()
 }
+
+fn build_win_ctrl_btn<'a>(
+    icon_data: &'static [u8],
+    msg: Message,
+    style_fn: fn(&iced::Theme, iced::widget::button::Status) -> iced::widget::button::Style,
+) -> Button<'a, Message> {
+    let svg = Svg::new(icons::svg_handle(icon_data))
+        .width(Length::Fixed(WIN_CTRL_ICON_SIZE))
+        .height(Length::Fixed(WIN_CTRL_ICON_SIZE));
+
+    Button::new(Container::new(svg).center(Length::Fixed(TITLE_BAR_HEIGHT)))
+        .padding(0)
+        .width(Length::Fixed(TITLE_BAR_HEIGHT))
+        .height(Length::Fixed(TITLE_BAR_HEIGHT))
+        .on_press(msg)
+        .style(style_fn)
+}
+
+// ── Toolbar (kept for backward compatibility, unused in main layout) ────
 
 // ── Seek bar ────────────────────────────────────────────────────────────
 

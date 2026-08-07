@@ -338,4 +338,45 @@ impl App {
         self.subtitle_visible = !self.subtitle_visible;
         Task::none()
     }
+
+    // ── Window control handlers (frameless custom title bar) ──────────
+
+    /// Start a window-system drag via iced. Returns a no-op when the
+    /// window_id is not yet known (during initial setup).
+    pub fn handle_window_drag(&self) -> Task<Message> {
+        if let Some(id) = self.window_id {
+            iced::window::drag(id)
+        } else {
+            Task::none()
+        }
+    }
+
+    /// Minimize the window.
+    pub fn handle_minimize(&self) -> Task<Message> {
+        if let Some(id) = self.window_id {
+            iced::window::minimize(id, true)
+        } else {
+            Task::none()
+        }
+    }
+
+    /// Toggle between maximized and restored window state.
+    pub fn handle_toggle_maximize(&mut self) -> Task<Message> {
+        self.maximized = !self.maximized;
+        if let Some(id) = self.window_id {
+            iced::window::toggle_maximize(id)
+        } else {
+            Task::none()
+        }
+    }
+
+    /// Close the application window.
+    pub fn handle_close(&self) -> Task<Message> {
+        if let Some(id) = self.window_id {
+            iced::window::close(id)
+        } else {
+            // Fallback: exit the process if we don't have a window id.
+            std::process::exit(0);
+        }
+    }
 }
