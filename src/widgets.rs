@@ -34,7 +34,7 @@ fn sized_icon(icon_data: &[u8], size: f32) -> Svg<'_> {
 /// `centered_icon`. 12 leaves 10px of margin on every side, which
 /// reads as "icon inside a circle" rather than "icon crammed against
 /// the edge".
-const UTIL_ICON_SIZE: f32 = 12.0;
+const UTIL_ICON_SIZE: f32 = 16.0;
 
 /// Width/height of the square (circular) utility buttons — loop, mute,
 /// and fullscreen. Matches BTN_HEIGHT for visual consistency with the
