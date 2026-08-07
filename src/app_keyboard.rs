@@ -5,14 +5,27 @@ use iced::keyboard::{self, Key, key};
 impl App {
     pub fn handle_keyboard_event(&mut self, event: keyboard::Event) -> Task<Message> {
         match event {
-            keyboard::Event::KeyPressed { key, modifiers, .. } => {
+            keyboard::Event::KeyPressed {
+                key, modifiers, ..
+            } => {
+                // Never intercept system shortcuts that involve the Windows /
+                // Super / Logo key (e.g. Win+I for Settings).  These must fall
+                // through to the OS so the default system behaviour is
+                // preserved.
+                if modifiers.logo() {
+                    return Task::none();
+                }
                 self.handle_key_press(&key, modifiers)
             }
             _ => Task::none(),
         }
     }
 
-    fn handle_key_press(&mut self, key: &Key, modifiers: keyboard::Modifiers) -> Task<Message> {
+    fn handle_key_press(
+        &mut self,
+        key: &Key,
+        modifiers: keyboard::Modifiers,
+    ) -> Task<Message> {
         match key {
             Key::Named(key::Named::Space) => self.handle_toggle_pause(),
             Key::Named(key::Named::ArrowLeft) => {
@@ -29,7 +42,9 @@ impl App {
                     self.handle_skip_forward(5)
                 }
             }
-            Key::Named(key::Named::ArrowUp) => self.handle_arrow_key(true, modifiers.control()),
+            Key::Named(key::Named::ArrowUp) => {
+                self.handle_arrow_key(true, modifiers.control())
+            }
             Key::Named(key::Named::ArrowDown) => {
                 self.handle_arrow_key(false, modifiers.control())
             }

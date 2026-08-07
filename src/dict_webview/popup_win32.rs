@@ -45,8 +45,12 @@ pub(crate) unsafe extern "system" fn dict_keyboard_hook(
             return CallNextHookEx(super::HOOK_HANDLE, ncode, wparam, lparam);
         }
         let fg = GetForegroundWindow();
-        let fg_is_ours = fg == owner || fg == popup || IsChild(popup, fg) != 0;
-        if !fg_is_ours {
+        // Only intercept when the popup window (or its WebView2 child) has
+        // keyboard focus.  Do NOT intercept when the main Iced window is the
+        // foreground window — that would swallow system shortcuts (Win+I,
+        // Win+D, etc.) even though our app does not use those keys.
+        let fg_is_popup = fg == popup || IsChild(popup, fg) != 0;
+        if !fg_is_popup {
             return CallNextHookEx(super::HOOK_HANDLE, ncode, wparam, lparam);
         }
 
