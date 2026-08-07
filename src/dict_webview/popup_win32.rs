@@ -13,38 +13,69 @@
 use super::ffi_win32::{
     CallNextHookEx, ClientToScreen, CreateWindowExW, DestroyWindow, GetClientRect, GetDpiForWindow,
     GetForegroundWindow, HWND_TOP, IsChild, KBDLLHOOKSTRUCT, NativePoint, NativeRect, PostMessageW,
-    SWP_FRAMECHANGED, SWP_SHOWWINDOW, SetWindowPos, VK_F4, WH_KEYBOARD_LL, WM_CLOSE, WM_SYSKEYDOWN,
+    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_SHOWWINDOW, SetWindowPos, VK_F4, WH_KEYBOARD_LL,
+    WM_CLOSE, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_POPUP, WS_VISIBLE, to_wide,
 };
 use super::{BASE_DPI, SIDEBAR_WIDTH, TAB_BAR_HEIGHT, TOOLBAR_HEIGHT};
 
 // ── Keyboard hook ───────────────────────────────────────────────────────
 
-/// Low-level keyboard hook that intercepts Alt+F4 and forwards it to the
-/// owning Iced window when the dictionary popup is active.
+/// Low-level keyboard hook that intercepts all keystrokes when the dictionary
+/// popup (or its WebView2 child) has keyboard focus and forwards them to the
+/// owning Iced window. This prevents the popup from stealing keyboard input.
 pub(crate) unsafe extern "system" fn dict_keyboard_hook(
     ncode: i32,
     wparam: usize,
     lparam: isize,
 ) -> isize {
     unsafe {
-        if ncode >= 0 && wparam == WM_SYSKEYDOWN {
-            let ks = &*(lparam as *const KBDLLHOOKSTRUCT);
-            if ks.vk_code == VK_F4 {
-                let popup = super::POPUP_HWND;
-                let owner = super::PARENT_HWND;
-                if popup != 0 && owner != 0 {
-                    let fg = GetForegroundWindow();
-                    let fg_is_ours = fg == owner || fg == popup || IsChild(popup, fg) != 0;
-                    if fg_is_ours {
-                        super::debug_log("ALT+F4 hook fired; posting WM_CLOSE to Iced window");
-                        let _ = PostMessageW(owner, WM_CLOSE, 0, 0);
-                        return 1;
-                    }
-                }
-            }
+        // Only process keyboard messages when HC_ACTION (ncode >= 0)
+        if ncode < 0 {
+            return CallNextHookEx(super::HOOK_HANDLE, ncode, wparam, lparam);
         }
-        CallNextHookEx(super::HOOK_HANDLE, ncode, wparam, lparam)
+        let msg = wparam;
+        // Only intercept keyboard messages
+        if msg != WM_KEYDOWN && msg != WM_KEYUP && msg != WM_SYSKEYDOWN && msg != WM_SYSKEYUP {
+            return CallNextHookEx(super::HOOK_HANDLE, ncode, wparam, lparam);
+        }
+        let popup = super::POPUP_HWND;
+        let owner = super::PARENT_HWND;
+        if popup == 0 || owner == 0 {
+            return CallNextHookEx(super::HOOK_HANDLE, ncode, wparam, lparam);
+        }
+        let fg = GetForegroundWindow();
+        let fg_is_ours = fg == owner || fg == popup || IsChild(popup, fg) != 0;
+        if !fg_is_ours {
+            return CallNextHookEx(super::HOOK_HANDLE, ncode, wparam, lparam);
+        }
+
+        // Alt+F4: post WM_CLOSE to Iced window (same behavior as before)
+        let ks = &*(lparam as *const KBDLLHOOKSTRUCT);
+        if msg == WM_SYSKEYDOWN && ks.vk_code == VK_F4 {
+            super::debug_log("ALT+F4 hook fired; posting WM_CLOSE to Iced window");
+            let _ = PostMessageW(owner, WM_CLOSE, 0, 0);
+            return 1;
+        }
+
+        // Build a standard WM_KEYDOWN/KEYUP/SYSKEYDOWN/SYSKEYUP lparam
+        let is_extended = (ks.flags & 0x0001) != 0; // LLKHF_EXTENDED
+        let alt_down = (ks.flags & 0x0020) != 0;    // LLKHF_ALTDOWN
+        let is_up = (ks.flags & 0x0080) != 0;       // LLKHF_UP
+        let scan_code = ks.scan_code & 0xFF;
+        let key_lparam: isize = ((scan_code as isize) << 16)
+            | if is_extended { 1 << 24 } else { 0 }
+            | if alt_down || msg == WM_SYSKEYDOWN || msg == WM_SYSKEYUP {
+                1 << 29
+            } else {
+                0
+            }
+            | if is_up { 1 << 31 | 1 << 30 } else { 0 };
+
+        // Forward the message to the Iced window
+        let _ = PostMessageW(owner, msg as u32, ks.vk_code as usize, key_lparam);
+        // Return non-zero to swallow the event (prevent it reaching the popup)
+        1
     }
 }
 
@@ -126,7 +157,7 @@ pub(crate) fn move_popup(hwnd: isize, screen_x: i32, screen_y: i32, w: i32, h: i
             screen_y,
             w,
             h,
-            SWP_SHOWWINDOW | SWP_FRAMECHANGED,
+            SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED,
         );
     }
 }

@@ -79,11 +79,15 @@ unsafe extern "system" {
 
 pub(crate) const WM_CLOSE: u32 = 0x0010;
 pub(crate) const WH_KEYBOARD_LL: i32 = 13;
+pub(crate) const WM_KEYDOWN: usize = 0x0100;
+pub(crate) const WM_KEYUP: usize = 0x0101;
 pub(crate) const WM_SYSKEYDOWN: usize = 0x0104;
+pub(crate) const WM_SYSKEYUP: usize = 0x0105;
 pub(crate) const VK_F4: u32 = 0x73;
 
 pub(crate) const SWP_SHOWWINDOW: u32 = 0x0040;
 pub(crate) const SWP_FRAMECHANGED: u32 = 0x0020;
+pub(crate) const SWP_NOACTIVATE: u32 = 0x0010;
 pub(crate) const HWND_TOP: isize = 0;
 /// Borderless popup window.
 pub(crate) const WS_POPUP: u32 = 0x8000_0000;
