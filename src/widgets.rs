@@ -19,6 +19,32 @@ fn icon_btn(icon_data: &[u8]) -> Svg<'_> {
         .height(Length::Fixed(ICON_SIZE))
 }
 
+/// Width/height of the square (circular) utility buttons — loop, mute,
+/// and fullscreen. Matches BTN_HEIGHT for visual consistency with the
+/// pill-shaped transport buttons next to them.
+const UTIL_BTN_SIZE: f32 = BTN_HEIGHT;
+
+/// Build a `Container` whose child icon is vertically centered within
+/// the parent's content area. Width stays at `Shrink` so the parent
+/// button's own width remains the controlling dimension (see note on
+/// `centered_icon` callers below) — without this, a previous version of
+/// the helper used `Length::Fill` for both axes, which caused each
+/// button's content to grab all available row width, turning every
+/// circular icon button into a wide pill.
+///
+/// Why `height` Fill: Iced's `Container` only honors `align_x` /
+/// `align_y` when the container is wider/taller than its child.
+/// Without `height(Length::Fill)`, the container collapses to the
+/// text's line-box height and `align_y(Center)` becomes a no-op,
+/// leaving the icon pinned to the top of the button — the original bug
+/// the helper exists to fix.
+fn centered_icon<'a>(text: Text<'a>) -> Container<'a, Message> {
+    Container::new(text)
+        .height(Length::Fill)
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center)
+}
+
 // ── Transport controls ──────────────────────────────────────────────────
 
 pub(crate) fn skip_back_30_btn() -> Button<'static, Message> {
@@ -76,14 +102,10 @@ pub(crate) fn frame_step_btn() -> Button<'static, Message> {
 // ── Utility controls ────────────────────────────────────────────────────
 
 pub(crate) fn loop_btn<'a>(is_looping: bool) -> Button<'a, Message> {
-    let text = Text::new("\u{1F501}").size(14);
-    let centered = Container::new(text)
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center);
-
-    Button::new(centered)
-        .padding([4, 8])
-        .height(Length::Fixed(BTN_HEIGHT))
+    Button::new(centered_icon(Text::new("\u{1F501}").size(14)))
+        .padding(0)
+        .width(Length::Fixed(UTIL_BTN_SIZE))
+        .height(Length::Fixed(UTIL_BTN_SIZE))
         .on_press(Message::ToggleLoop)
         .style(if is_looping {
             styles::active_btn
@@ -94,14 +116,10 @@ pub(crate) fn loop_btn<'a>(is_looping: bool) -> Button<'a, Message> {
 
 pub(crate) fn mute_btn<'a>(muted: bool) -> Button<'a, Message> {
     let icon = if muted { "\u{1F507}" } else { "\u{1F50A}" };
-    let text = Text::new(icon).size(14);
-    let centered = Container::new(text)
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center);
-
-    Button::new(centered)
-        .padding([4, 8])
-        .height(Length::Fixed(BTN_HEIGHT))
+    Button::new(centered_icon(Text::new(icon).size(14)))
+        .padding(0)
+        .width(Length::Fixed(UTIL_BTN_SIZE))
+        .height(Length::Fixed(UTIL_BTN_SIZE))
         .on_press(Message::ToggleMute)
         .style(if muted {
             styles::muted_btn_style
@@ -112,11 +130,7 @@ pub(crate) fn mute_btn<'a>(muted: bool) -> Button<'a, Message> {
 
 pub(crate) fn content_fit_btn<'a>(cf: iced::ContentFit) -> Button<'a, Message> {
     let text = Text::new(format!("{:?}", cf)).size(10);
-    let centered = Container::new(text)
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center);
-
-    Button::new(centered)
+    Button::new(centered_icon(text))
         .padding([4, 8])
         .height(Length::Fixed(BTN_HEIGHT))
         .on_press(Message::CycleContentFit)
@@ -124,9 +138,10 @@ pub(crate) fn content_fit_btn<'a>(cf: iced::ContentFit) -> Button<'a, Message> {
 }
 
 pub(crate) fn fullscreen_btn<'a>() -> Button<'a, Message> {
-    Button::new(Text::new("\u{26F6}").size(14))
-        .padding([4, 8])
-        .height(Length::Fixed(BTN_HEIGHT))
+    Button::new(centered_icon(Text::new("\u{26F6}").size(14)))
+        .padding(0)
+        .width(Length::Fixed(UTIL_BTN_SIZE))
+        .height(Length::Fixed(UTIL_BTN_SIZE))
         .on_press(Message::ToggleFullscreen)
         .style(styles::fullscreen_btn_style)
 }

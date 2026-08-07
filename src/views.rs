@@ -347,27 +347,38 @@ fn build_shortcut_row<'a>(key: &'a str, action: &'a str) -> Row<'a, Message> {
         .spacing(8)
         .push(
             Text::new(key)
-                .size(10)
+                .size(11)
                 .color(TEAL)
-                .width(Length::Fixed(130.0))
+                .width(Length::Fixed(110.0))
                 .align_x(Horizontal::Right),
         )
-        .push(Text::new(action).size(10).color(MUTED))
+        .push(Text::new(action).size(11).color(MUTED))
 }
 
 fn build_shortcuts_reference() -> Container<'static, Message> {
-    let header = Text::new("Keyboard Shortcuts").size(12).color(Color::WHITE);
+    let header = Text::new("Keyboard Shortcuts").size(14).color(Color::WHITE);
 
-    let mut col = Column::new()
-        .spacing(3)
-        .push(header)
-        .push(Space::new().height(4));
+    let entries = shortcut_entries();
+    let mid = entries.len() / 2;
+    let (left_entries, right_entries) = entries.split_at(mid);
 
-    for (key, action) in &shortcut_entries() {
-        col = col.push(build_shortcut_row(key, action));
+    let mut left_col = Column::new().spacing(3);
+    for (key, action) in left_entries {
+        left_col = left_col.push(build_shortcut_row(key, action));
     }
 
-    Container::new(col).padding(16).style(|_| container::Style {
+    let mut right_col = Column::new().spacing(3);
+    for (key, action) in right_entries {
+        right_col = right_col.push(build_shortcut_row(key, action));
+    }
+
+    let body = Column::new()
+        .spacing(4)
+        .push(header)
+        .push(Space::new().height(4))
+        .push(Row::new().spacing(16).push(left_col).push(right_col));
+
+    Container::new(body).padding(16).style(|_| container::Style {
         background: Some(iced::Background::Color(Color::from_rgb(0.10, 0.10, 0.14))),
         border: border::color(Color::from_rgba(0.55, 0.55, 0.58, 0.25))
             .width(1.0)
