@@ -45,7 +45,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let layout = Column::new()
         .width(Length::Fill)
         .height(Length::Fill)
-        .push(build_toolbar(has_video, app.position, app.video_duration()))
+        .push(build_toolbar(has_video))
         .push(main_row);
 
     Container::new(layout)
@@ -126,7 +126,7 @@ fn build_text_subtitle_layer(text: &str, font_size: f32) -> Container<'_, Messag
 
 // ── Toolbar ─────────────────────────────────────────────────────────────
 
-fn build_toolbar<'a>(has_video: bool, position: f64, duration: f64) -> Element<'a, Message> {
+fn build_toolbar<'a>(has_video: bool) -> Element<'a, Message> {
     Container::new(
         Row::new()
             .spacing(8)
@@ -147,18 +147,6 @@ fn build_toolbar<'a>(has_video: bool, position: f64, duration: f64) -> Element<'
                         None
                     })
                     .style(crate::styles::purple_btn),
-            )
-            .push(Space::new().width(Length::Fill))
-            .push(
-                Text::new(crate::text_utils::format_time(position))
-                    .size(14)
-                    .color(TEAL),
-            )
-            .push(Text::new(" / ").size(12).color(SILVER))
-            .push(
-                Text::new(crate::text_utils::format_time(duration))
-                    .size(12)
-                    .color(SILVER),
             ),
     )
     .width(Length::Fill)
@@ -200,6 +188,19 @@ fn build_controls<'a>(is_paused: bool, is_looping: bool, app: &App) -> Row<'a, M
         .push(crate::widgets::skip_forward_5_btn())
         .push(crate::widgets::skip_forward_30_btn())
         .push(crate::widgets::frame_step_btn())
+        .push(Space::new().width(Length::Fill))
+        // ── centered time display ──
+        .push(
+            Text::new(crate::text_utils::format_time(app.position))
+                .size(14)
+                .color(TEAL),
+        )
+        .push(Text::new(" / ").size(12).color(SILVER))
+        .push(
+            Text::new(crate::text_utils::format_time(app.video_duration()))
+                .size(12)
+                .color(SILVER),
+        )
         .push(Space::new().width(Length::Fill))
         // ── right-side utility cluster ──
         .push(Text::new("Speed:").size(10).color(MUTED))
