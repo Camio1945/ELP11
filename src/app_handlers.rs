@@ -333,4 +333,9 @@ impl App {
         self.persist_current_position();
         Task::none()
     }
+
+    pub fn handle_toggle_subtitle(&mut self) -> Task<Message> {
+        self.subtitle_visible = !self.subtitle_visible;
+        Task::none()
+    }
 }

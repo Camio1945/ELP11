@@ -104,7 +104,7 @@ impl App {
             "." => self.handle_frame_step_forward(),
             "o" | "O" => self.handle_open_file(),
             "s" | "S" => self.handle_load_subtitle(),
-            "c" | "C" => self.handle_cycle_content_fit(),
+            "c" | "C" => self.handle_toggle_subtitle(),
             _ => Task::none(),
         }
     }

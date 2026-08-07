@@ -49,6 +49,7 @@ pub enum Message {
     SetSpeed(f64),
     ToggleFullscreen,
     CycleContentFit,
+    ToggleSubtitle,
     KeyboardEvent(iced::keyboard::Event),
     WindowOpened(iced::window::Id),
     SwitchSidebarTab(SidebarTab),
@@ -117,6 +118,8 @@ pub struct App {
     /// Wall-clock time of the last Home-key subtitle seek, used to detect a
     /// rapid double-press (step back one extra subtitle).
     pub last_home_seek: Option<Instant>,
+    /// Whether subtitles are currently visible.
+    pub subtitle_visible: bool,
     /// Playlist: list of video file paths.
     pub playlist: Vec<String>,
     /// Index of the currently playing video in the playlist, if any.
@@ -154,6 +157,7 @@ impl Default for App {
             pending_resume: None,
             subtitle_cues: Vec::new(),
             last_home_seek: None,
+            subtitle_visible: true,
             playlist: Vec::new(),
             playlist_index: None,
         }

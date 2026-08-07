@@ -28,6 +28,7 @@ impl App {
             Message::SetSpeed(s) => self.handle_set_speed(s),
             Message::ToggleFullscreen => self.handle_toggle_fullscreen(),
             Message::CycleContentFit => self.handle_cycle_content_fit(),
+            Message::ToggleSubtitle => self.handle_toggle_subtitle(),
             Message::WindowOpened(id) => self.handle_window_opened(id),
             Message::KeyboardEvent(e) => self.handle_keyboard_event(e),
             Message::AdjustVolume(d) => self.handle_adjust_volume(d),

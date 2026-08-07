@@ -91,7 +91,7 @@ fn build_player_area(app: &App) -> Element<'_, Message> {
 
     let has_text_sub = !app.subtitle_text.is_empty();
     let has_image_sub = app.subtitle_image.is_some();
-    if !has_text_sub && !has_image_sub {
+    if !has_text_sub && !has_image_sub || !app.subtitle_visible {
         return video_container.into();
     }
 
@@ -338,7 +338,7 @@ fn shortcut_entries() -> [(&'static str, &'static str); 24] {
         (".", "Frame step forward"),
         ("O", "Open file"),
         ("S", "Load subtitle"),
-        ("C", "Cycle content fit"),
+        ("C", "Toggle subtitle"),
     ]
 }
 
